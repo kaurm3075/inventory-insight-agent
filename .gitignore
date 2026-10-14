@@ -1,0 +1,6 @@
+data/*.xlsx
+data/*.zip
+data/*.db
+__pycache__/
+.pytest_cache/
+.env
