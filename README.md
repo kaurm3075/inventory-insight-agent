@@ -3,8 +3,8 @@
 An AI assistant that answers a shop owner's stock questions in plain English
 ("Which items have not sold in 60 days, and how much cash is stuck in them?").
 
-**Status: Week 1 of 6 (data and SQL queries).** The agent, forecasting, evaluation and app
-come in later weeks. Full project documentation is in the shared Google Doc / Claude doc.
+**Status: Week 2 of 6 (agent, chat app, guardrails, logging).** Forecasting, multi-step reasoning and
+the evaluation comparison come in later weeks.
 
 ## What is real and what is simulated
 
@@ -33,6 +33,35 @@ python -m inventory_agent.run_queries   # prints the 5 prebuilt queries
 pytest -q                               # unit tests
 ```
 
+## Week 2: the agent and chat app
+
+The agent is an LLM (Google Gemini, free tier) that picks from seven tools and never touches the data directly.
+
+```
+question -> agent (LLM + tool calling) -> tools (read-only SQL) -> database
+```
+
+Tools: `get_schema`, `slow_movers`, `cash_blocked_by_category`, `reorder_list`, `top_sellers`,
+`monthly_sales`, and `run_sql` for anything else.
+
+Guardrails (`inventory_agent/guardrails.py`, tested in `tests/test_guardrails.py`):
+only a single SELECT is allowed; writes, comments, PRAGMA, ATTACH and system tables are rejected;
+the database connection is opened read-only; at most 50 rows are returned; each query is stopped after 5 seconds;
+the agent gives up after 6 tool-call rounds. The SQL behind every answer is shown in the app.
+
+Logging: every question is appended to `logs/agent_log.jsonl` (question, answer, tools called, SQL,
+latency, token counts).
+
+### Setup
+
+1. Create a free API key in [Google AI Studio](https://aistudio.google.com) and store it as a secret named
+   `GEMINI_API_KEY` (Codespaces secret, or `export GEMINI_API_KEY=...` for one session). Never commit it.
+2. Check it works: `python -m inventory_agent.check_llm`
+   (if the default model is not available to your key, it lists the ones that are; set `GEMINI_MODEL` to one of them).
+3. Start the chat app: `streamlit run app/streamlit_app.py`
+
+The tests use a scripted fake model, so `pytest -q` needs no key and no network.
+
 ## Project layout
 
 ```
@@ -40,5 +69,11 @@ data/download_data.py          downloads the dataset
 inventory_agent/build_db.py   cleaning, simulated stock, SQLite database
 inventory_agent/queries.py    prebuilt read-only SQL queries (the agent's tools in Week 2)
 inventory_agent/run_queries.py prints the query results
-tests/                        unit tests
+inventory_agent/tools.py      the agent's tools (prebuilt queries and guarded run_sql)
+inventory_agent/guardrails.py SQL validation, timeout
+inventory_agent/llm.py        Gemini adapter behind a small provider-neutral interface
+inventory_agent/agent.py      agent loop, system prompt, logging
+inventory_agent/check_llm.py  checks the API key and model
+app/streamlit_app.py          chat interface
+tests/                        unit tests (45)
 ```

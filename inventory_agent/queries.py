@@ -13,11 +13,11 @@ import pandas as pd
 DB_PATH = Path(__file__).resolve().parents[1] / "data" / "shop.db"
 
 
-def connect(db_path: Path = DB_PATH) -> sqlite3.Connection:
+def connect(db_path: Path = DB_PATH, check_same_thread: bool = True) -> sqlite3.Connection:
     """Open the database in read-only mode."""
     if not Path(db_path).exists():
         raise FileNotFoundError("Database not found. Run: python -m inventory_agent.build_db")
-    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=check_same_thread)
 
 
 def get_as_of(con: sqlite3.Connection) -> str:
